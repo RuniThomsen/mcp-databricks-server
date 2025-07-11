@@ -1,5 +1,5 @@
 """
-Databricks MCP Server (Corrected Version)
+Databricks MCP Server (Fixed Version)
 
 This module provides MCP (Model Context Protocol) tools for interacting with Databricks.
 It includes functionality for executing SQL queries and managing Databricks resources.
@@ -8,9 +8,8 @@ It includes functionality for executing SQL queries and managing Databricks reso
 import asyncio
 import json
 import os
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional
 
-from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Resource, Tool, TextContent
 from databricks import sql
@@ -98,10 +97,9 @@ async def main():
     
     # Create server instance
     databricks_server = DatabricksMCPServer()
-    server = Server("databricks-mcp")
     
-    @server.list_tools()
-    async def handle_list_tools() -> List[Tool]:
+    # Define tools
+    async def handle_list_tools():
         """List available Databricks tools."""
         return [
             Tool(
@@ -147,8 +145,7 @@ async def main():
             )
         ]
     
-    @server.call_tool()
-    async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> Sequence[TextContent]:
+    async def handle_call_tool(name: str, arguments: Dict[str, Any]):
         """Handle tool calls."""
         if name == "execute_sql":
             result = await databricks_server.execute_sql(arguments["sql"])
@@ -165,10 +162,15 @@ async def main():
     
     # Run the server
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(
+        await stdio_server().run(
             read_stream,
             write_stream,
-            server.create_initialization_options()
+            init_options={
+                "server_name": "databricks-mcp",
+                "server_version": "1.0.0",
+            },
+            list_tools=handle_list_tools,
+            call_tool=handle_call_tool,
         )
 
 
